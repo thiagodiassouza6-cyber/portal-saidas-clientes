@@ -175,7 +175,7 @@ try:
     df_totais = pd.read_sql_query(query_totais, conn)
 
     # 2. Ranking de Todos os Clientes
-query_clientes = f"""
+    query_clientes = f"""
     SELECT 
         CASE 
             WHEN UPPER(NOME_CLIENTE) LIKE '%ACTEGA%' OR UPPER(NOME_CLIENTE) LIKE '%AZTEGA%' 
