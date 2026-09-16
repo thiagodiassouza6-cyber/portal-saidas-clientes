@@ -175,13 +175,13 @@ try:
     df_totais = pd.read_sql_query(query_totais, conn)
 
     # 2. Ranking de Todos os Clientes
-    query_clientes = f"""
-        SELECT NOME_CLIENTE AS "Cliente", SUM(QUANTIDADE_KG) AS "Volume_KG"
-        FROM movimentacao_vendas
-        {where_sql}
-        GROUP BY NOME_CLIENTE
-        ORDER BY "Volume_KG" DESC
-    """
+query_clientes = f"""
+    SELECT NOME_CLIENTE AS "Cliente", SUM(QUANTIDADE_KG) AS "Volume_KG"
+    FROM movimentacao_vendas
+    {where_sql} UPPER(NOME_CLIENTE) NOT LIKE '%PRODUÇÃO%'
+    GROUP BY NOME_CLIENTE
+    ORDER BY "Volume_KG" DESC
+"""
     df_todos_clientes = pd.read_sql_query(query_clientes, conn)
 
     # 3. Ranking de Todos os Produtos do Filtro
