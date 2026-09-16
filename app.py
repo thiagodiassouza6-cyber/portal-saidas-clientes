@@ -175,11 +175,11 @@ try:
     df_totais = pd.read_sql_query(query_totais, conn)
 
     # 2. Ranking de Todos os Clientes
-    query_clientes = f"""
-    SELECT NOME_CLIENTE AS "Cliente", SUM(QUANTIDADE_KG) AS "Volume_KG"
+query_clientes = f"""
+    SELECT TRIM(UPPER(NOME_CLIENTE)) AS "Cliente", SUM(QUANTIDADE_KG) AS "Volume_KG"
     FROM movimentacao_vendas
     {where_sql} AND UPPER(NOME_CLIENTE) NOT LIKE '%PRODUÇÃO%'
-    GROUP BY NOME_CLIENTE
+    GROUP BY TRIM(UPPER(NOME_CLIENTE))
     ORDER BY "Volume_KG" DESC
 """
     df_todos_clientes = pd.read_sql_query(query_clientes, conn)
