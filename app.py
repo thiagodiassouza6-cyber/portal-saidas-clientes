@@ -178,7 +178,7 @@ try:
     query_clientes = f"""
     SELECT NOME_CLIENTE AS "Cliente", SUM(QUANTIDADE_KG) AS "Volume_KG"
     FROM movimentacao_vendas
-    {where_sql} UPPER(NOME_CLIENTE) NOT LIKE '%PRODUÇÃO%'
+    {where_sql} AND UPPER(NOME_CLIENTE) NOT LIKE '%PRODUÇÃO%'
     GROUP BY NOME_CLIENTE
     ORDER BY "Volume_KG" DESC
 """
