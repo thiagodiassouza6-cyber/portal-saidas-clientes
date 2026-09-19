@@ -204,7 +204,7 @@ try:
     conn.close()
 
     # Aplica a padronização no DataFrame completo
-df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
+    df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
 
 # Remove registros descartados (PRODUÇÃO / None)
 df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
