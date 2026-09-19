@@ -192,7 +192,7 @@ try:
         anos_fmt = "', '".join(ano_selecionado)
         condicoes_sql.append(f"ANO_ORIGEM IN ('{anos_fmt}')")
 
-where_clause = "WHERE " + " AND ".join(condicoes_sql)
+    where_clause = "WHERE " + " AND ".join(condicoes_sql)
 
     query_base = f"""
         SELECT ANO_ORIGEM, MES_ORIGEM, NOME_CLIENTE, NOME_DO_PRODUTO, QUANTIDADE_KG
@@ -212,7 +212,7 @@ where_clause = "WHERE " + " AND ".join(condicoes_sql)
 
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
-        
+
 # Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
     if cliente_selecionado:
         produtos_disponiveis = sorted(df_vendas[df_vendas['NOME_CLIENTE'].isin(cliente_selecionado)]['NOME_DO_PRODUTO'].dropna().unique().tolist())
