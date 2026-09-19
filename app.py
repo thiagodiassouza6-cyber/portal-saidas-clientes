@@ -8,13 +8,14 @@ import re
 # TRATAMENTO E PADRONIZAÇÃO DE CLIENTES
 # ==========================================
 def padronizar_cliente(nome):
-    if not isinstance(nome, str):
-        return nome
+    if not isinstance(nome, str) or pd.isna(nome):
+        return None
     
+    # 1. Padronização básica de texto
     nome = nome.upper().strip()
     nome = re.sub(r'\s+', ' ', nome)
     
-    # Trava 1: Elimina PRODUCAO / PRODUÇÃO descartando o registro (retorna None)
+    # 2. TRAVA ABSOLUTA: Elimina PRODUÇÃO / PRODUCAO / QUALQUER TIPO DE PRODUÇÃO
     if 'PRODUC' in nome:
         return None
     
@@ -135,8 +136,7 @@ def gerar_excel(df, nome_aba="Dados"):
     return output.getvalue()
 
 
-# --- CONSULTAS COM CACHE DE BANCO ---
-# @st.cache_data(ttl=3600)
+# --- CONSULTAS SEM CACHE PARA FORÇAR ATUALIZAÇÃO RECTILÍNEA ---
 def obter_filtros_iniciais():
     conn = sqlite3.connect("estoque.db")
 
@@ -146,13 +146,7 @@ def obter_filtros_iniciais():
     )["ANO_ORIGEM"].tolist()
 
     df_clientes_raw = pd.read_sql_query(
-        """
-        SELECT DISTINCT NOME_CLIENTE
-        FROM movimentacao_vendas
-        WHERE NOME_CLIENTE IS NOT NULL
-            AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao')
-            AND UPPER(NOME_CLIENTE) NOT LIKE '%PRODUC%'
-        """,
+        "SELECT DISTINCT NOME_CLIENTE FROM movimentacao_vendas WHERE NOME_CLIENTE IS NOT NULL",
         conn,
     )
 
@@ -184,11 +178,7 @@ try:
     # --- CARREGAMENTO E FILTRAGEM VIA PANDAS ---
     conn = sqlite3.connect("estoque.db")
 
-    # Busca a base de vendas respeitando filtro de ano se houver
     condicoes_sql = ["NOME_CLIENTE IS NOT NULL", "NOME_DO_PRODUTO IS NOT NULL"]
-    condicoes_sql.append("LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao', 'null', '', 'none')")
-    condicoes_sql.append("UPPER(NOME_CLIENTE) NOT LIKE '%PRODUC%'")
-    condicoes_sql.append("LOWER(TRIM(NOME_DO_PRODUTO)) NOT IN ('null', '', 'none')")
 
     if ano_selecionado:
         anos_fmt = "', '".join(ano_selecionado)
@@ -205,11 +195,12 @@ try:
     df_vendas = pd.read_sql_query(query_base, conn)
     conn.close()
 
-    # Aplica a padronização no DataFrame completo
+    # 1. Aplica a padronização no DataFrame completo
     df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
 
-    # Trava 2: Remove registros descartados (PRODUÇÃO / None) do DataFrame Pandas
+    # 2. FILTRAGEM RIGOROSA DE PRODUÇÃO E VALORES NULOS NO PANDAS
     df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
+    df_vendas = df_vendas[~df_vendas['NOME_CLIENTE'].astype(str).str.upper().str.contains('PRODUC', na=False)]
 
     # Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
     if cliente_selecionado:
@@ -237,17 +228,16 @@ try:
     total_pedidos = len(df_vendas)
     total_clientes = df_vendas["NOME_CLIENTE"].nunique() if not df_vendas.empty else 0
 
-    # 2. Ranking de Clientes
+    # 2. Ranking de Clientes (com trava adicional)
     if not df_vendas.empty:
-        # Trava direta na tabela: remove qualquer variação de PRODUCAO/PRODUÇÃO
-        df_vendas_limpo = df_vendas[~df_vendas['NOME_CLIENTE'].astype(str).str.upper().str.contains('PRODUC', na=False)]
-        
         df_todos_clientes = (
-            df_vendas_limpo.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
+            df_vendas.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
             .sum()
             .rename(columns={"NOME_CLIENTE": "Cliente", "QUANTIDADE_KG": "Volume_KG"})
             .sort_values(by="Volume_KG", ascending=False)
         )
+        # Limpeza final no ranking
+        df_todos_clientes = df_todos_clientes[~df_todos_clientes['Cliente'].astype(str).str.upper().str.contains('PRODUC', na=False)]
     else:
         df_todos_clientes = pd.DataFrame(columns=["Cliente", "Volume_KG"])
 
