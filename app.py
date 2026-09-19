@@ -140,8 +140,8 @@ df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padroniz
 # 3. Gera a lista final sem duplicidades e ordenada para o dropdown
 clientes = sorted(df_clientes_raw['NOME_CLIENTE'].dropna().unique().tolist())
 
-    conn.close()
-    return anos, clientes
+conn.close()
+return anos, clientes
 
 
 try:
