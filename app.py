@@ -207,7 +207,7 @@ try:
     df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
 
 # Remove registros descartados (PRODUÇÃO / None)
-df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
+    df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
 
 # Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
     if cliente_selecionado:
