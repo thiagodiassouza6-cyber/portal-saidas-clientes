@@ -123,16 +123,15 @@ def obter_filtros_iniciais():
         conn,
     )["ANO_ORIGEM"].tolist()
 
- # 1. Carrega o DataFrame com os clientes do banco
 df_clientes_raw = pd.read_sql_query(
-    """
-    SELECT DISTINCT NOME_CLIENTE
-    FROM movimentacao_vendas
-    WHERE NOME_CLIENTE IS NOT NULL
-        AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção')
-    """,
-    conn
-)
+        """
+        SELECT DISTINCT NOME_CLIENTE
+        FROM movimentacao_vendas
+        WHERE NOME_CLIENTE IS NOT NULL
+            AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção')
+        """,
+        conn
+    )
 
     # 2. Aplica a padronização para limpar duplicados e erros
     df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padronizar_cliente)
