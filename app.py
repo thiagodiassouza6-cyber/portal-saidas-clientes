@@ -239,8 +239,11 @@ try:
 
     # 2. Ranking de Clientes
     if not df_vendas.empty:
+        # Trava direta na tabela: remove qualquer variação de PRODUCAO/PRODUÇÃO
+        df_vendas_limpo = df_vendas[~df_vendas['NOME_CLIENTE'].astype(str).str.upper().str.contains('PRODUC', na=False)]
+        
         df_todos_clientes = (
-            df_vendas.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
+            df_vendas_limpo.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
             .sum()
             .rename(columns={"NOME_CLIENTE": "Cliente", "QUANTIDADE_KG": "Volume_KG"})
             .sort_values(by="Volume_KG", ascending=False)
