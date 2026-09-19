@@ -228,16 +228,19 @@ try:
     total_pedidos = len(df_vendas)
     total_clientes = df_vendas["NOME_CLIENTE"].nunique() if not df_vendas.empty else 0
 
-    # 2. Ranking de Clientes (com trava adicional)
+    # 2. Ranking de Clientes
     if not df_vendas.empty:
+        # Remove qualquer variação de PRODUÇÃO / PRODUCAO ignorando acentos e maiúsculas
+        df_vendas_filtrado = df_vendas[
+            ~df_vendas['NOME_CLIENTE'].astype(str).str.upper().str.contains('PRODUC', na=False)
+        ]
+
         df_todos_clientes = (
-            df_vendas.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
+            df_vendas_filtrado.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
             .sum()
             .rename(columns={"NOME_CLIENTE": "Cliente", "QUANTIDADE_KG": "Volume_KG"})
             .sort_values(by="Volume_KG", ascending=False)
         )
-        # Limpeza final no ranking
-        df_todos_clientes = df_todos_clientes[~df_todos_clientes['Cliente'].astype(str).str.upper().str.contains('PRODUC', na=False)]
     else:
         df_todos_clientes = pd.DataFrame(columns=["Cliente", "Volume_KG"])
 
