@@ -2,6 +2,53 @@ import io
 import sqlite3
 import pandas as pd
 import streamlit as st
+import re  
+
+# ==========================================
+# TRATAMENTO E PADRONIZAÇÃO DE CLIENTES
+# ==========================================
+def padronizar_cliente(nome):
+    if not isinstance(nome, str):
+        return nome
+    
+    nome = nome.upper().strip()
+    nome = re.sub(r'\s+', ' ', nome)
+    
+    # DSM e SAVINA
+    if 'DSM' in nome or 'DS&M' in nome: return 'DSM'
+    if 'SAVINA' in nome or 'SANIVA' in nome: return 'SAVINA'
+
+    # CLIENTES DA PLANILHA
+    if 'TONACRIL' in nome: return 'TONACRIL'
+    if 'WS CARDOSO' in nome or 'W S CARDOSO' in nome: return 'WS CARDOSO'
+    if 'ACQUACORES' in nome or 'ACQUA CORES' in nome: return 'ACQUACORES'
+    if 'LABORSAN' in nome: return 'LABORSAN'
+    if 'BIG MASSA' in nome or 'BIGMASSA' in nome: return 'BIG MASSA'
+    if 'FS DE MORAIS' in nome or 'F S DE MORAIS' in nome or 'FS DE MORAES' in nome: return 'FS DE MORAIS'
+    if 'WILTON' in nome: return 'WILTON IND'
+    if 'WESTROCK' in nome or 'WEST ROCK' in nome: return 'WESTROCK'
+    if 'JA LARA' in nome or 'J A LARA' in nome or 'J.A. LARA' in nome: return 'JA LARA'
+    if 'PROTELIM' in nome: return 'PROTELIM'
+    if 'GENESIS' in nome or 'GÊNESIS' in nome: return 'GENESIS'
+    if 'GARIN' in nome: return 'GARIN'
+    if 'OUROCOLOR' in nome or 'OURO COLOR' in nome: return 'OUROCOLOR'
+    if 'ROYAL MARK' in nome or 'ROYALMARK' in nome: return 'ROYAL MARK'
+    if 'SAINT-GOBAIN' in nome or 'SAINT GOBAIN' in nome or 'SAINTGOBAIN' in nome: return 'SAINT-GOBAIN'
+    if 'AGRO QUIM' in nome or 'AGROQUIM' in nome or 'AGRO QUÍM' in nome: return 'AGROQUIMICA'
+    
+    # OUTROS CLIENTES
+    if 'ACTEGA' in nome or 'AZTEGA' in nome: return 'ACTEGA'
+    if 'SUN CHEMICAL' in nome: return 'SUN CHEMICAL'
+    if 'ALLTAK' in nome: return 'ALLTAK'
+    if 'COLOR DEX' in nome or 'COLORDEX' in nome: return 'COLORDEX'
+    if 'FLEXOINK' in nome: return 'FLEXOINK'
+    if 'UIRAPURU' in nome: return 'UIRAPURU'
+    if 'ENGEFORTE' in nome: return 'ENGEFORTE'
+    if 'VIACOLOR' in nome: return 'VIACOLOR'
+    if 'BORDEAUX' in nome: return 'BORDEAUX'
+    if 'MARTINS' in nome: return 'MARTINS'
+
+    return nome
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -76,16 +123,22 @@ def obter_filtros_iniciais():
         conn,
     )["ANO_ORIGEM"].tolist()
 
-    clientes = pd.read_sql_query(
-        """
-        SELECT DISTINCT NOME_CLIENTE 
-        FROM movimentacao_vendas 
-        WHERE NOME_CLIENTE IS NOT NULL 
-          AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao', 'null', '', 'none')
-        ORDER BY NOME_CLIENTE ASC
+ # 1. Carrega o DataFrame com os clientes do banco
+df_clientes_raw = pd.read_sql_query(
+    """
+    SELECT DISTINCT NOME_CLIENTE
+    FROM movimentacao_vendas
+    WHERE NOME_CLIENTE IS NOT NULL
+        AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção')
     """,
-        conn,
-    )["NOME_CLIENTE"].tolist()
+    conn
+)
+
+# 2. Aplica a padronização para limpar duplicados e erros
+df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padronizar_cliente)
+
+# 3. Gera a lista final sem duplicidades e ordenada para o dropdown
+clientes = sorted(df_clientes_raw['NOME_CLIENTE'].dropna().unique().tolist())
 
     conn.close()
     return anos, clientes
@@ -174,22 +227,25 @@ try:
     query_totais = f"SELECT SUM(QUANTIDADE_KG) as TOTAL_KG, COUNT(*) as TOTAL_REGISTROS, COUNT(DISTINCT NOME_CLIENTE) as TOTAL_CLIENTES FROM movimentacao_vendas {where_sql}"
     df_totais = pd.read_sql_query(query_totais, conn)
 
-    # 2. Ranking de Todos os Clientes
-    query_clientes = f"""
+ # 2. Ranking de Todos os Clientes
+query_clientes = f"""
     SELECT 
-        CASE 
-            WHEN UPPER(NOME_CLIENTE) LIKE '%ACTEGA%' OR UPPER(NOME_CLIENTE) LIKE '%AZTEGA%' 
-            THEN 'ACTEGA DO BRASIL TINTAS E VERNIZES LTDA'
-            ELSE TRIM(UPPER(NOME_CLIENTE))
-        END AS "Cliente",
+        NOME_CLIENTE AS "Cliente",
         SUM(QUANTIDADE_KG) AS "Volume_KG"
     FROM movimentacao_vendas
     {where_sql} AND UPPER(NOME_CLIENTE) NOT LIKE '%PRODUÇÃO%'
-    GROUP BY 1
-    ORDER BY "Volume_KG" DESC
+    GROUP BY NOME_CLIENTE
 """
-    df_todos_clientes = pd.read_sql_query(query_clientes, conn)
 
+df_todos_clientes = pd.read_sql_query(query_clientes, conn)
+
+# --- APLICA A NOSSA PADRONIZAÇÃO E SOMA OS VOLUMES ---
+df_todos_clientes['Cliente'] = df_todos_clientes['Cliente'].apply(padronizar_cliente)
+df_todos_clientes = (
+    df_todos_clientes.groupby('Cliente', as_index=False)['Volume_KG']
+    .sum()
+    .sort_values(by='Volume_KG', ascending=False)
+)
     # 3. Ranking de Todos os Produtos do Filtro
     query_produtos = f"""
         SELECT NOME_DO_PRODUTO AS "Produto", SUM(QUANTIDADE_KG) AS "Volume_KG"
