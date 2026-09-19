@@ -136,7 +136,7 @@ def gerar_excel(df, nome_aba="Dados"):
 
 
 # --- CONSULTAS COM CACHE DE BANCO ---
-@st.cache_data(ttl=3600)
+# @st.cache_data(ttl=3600)
 def obter_filtros_iniciais():
     conn = sqlite3.connect("estoque.db")
 
