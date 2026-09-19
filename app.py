@@ -45,7 +45,6 @@ def padronizar_cliente(nome):
     if 'WESTROCK' in nome or 'WEST ROCK' in nome: return 'WESTROCK'
     if 'JA LARA' in nome or 'J A LARA' in nome or 'J.A. LARA' in nome: return 'JA LARA'
     if 'PROTELIM' in nome: return 'PROTELIM'
-    if 'GENESIS' in nome or 'GÊNESIS' in nome: return 'GENESIS'
     if 'GARIN' in nome: return 'GARIN'
     if 'OUROCOLOR' in nome or 'OURO COLOR' in nome: return 'OUROCOLOR'
     if 'ROYAL MARK' in nome or 'ROYALMARK' in nome: return 'ROYAL MARK'
