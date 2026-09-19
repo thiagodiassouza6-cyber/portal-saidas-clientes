@@ -35,7 +35,7 @@ def padronizar_cliente(nome):
     if 'ROYAL MARK' in nome or 'ROYALMARK' in nome: return 'ROYAL MARK'
     if 'SAINT-GOBAIN' in nome or 'SAINT GOBAIN' in nome or 'SAINTGOBAIN' in nome: return 'SAINT-GOBAIN'
     if 'AGRO QUIM' in nome or 'AGROQUIM' in nome or 'AGRO QUÍM' in nome: return 'AGROQUIMICA'
-     if 'ACN QUIMICA' in nome: return 'ACN QUIMICA'
+    if 'ACN QUIMICA' in nome: return 'ACN QUIMICA'
     if 'ACQUAPLUF' in nome: return 'ACQUAPLUF'
     if 'ALTHA COR' in nome or 'ALTHACOR' in nome: return 'ALTHA COR'
     if 'ARTCRIL' in nome: return 'ARTCRIL'
