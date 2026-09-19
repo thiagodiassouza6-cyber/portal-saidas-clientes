@@ -228,7 +228,7 @@ try:
     df_totais = pd.read_sql_query(query_totais, conn)
 
  # 2. Ranking de Todos os Clientes
-query_clientes = f"""
+    query_clientes = f"""
     SELECT 
         NOME_CLIENTE AS "Cliente",
         SUM(QUANTIDADE_KG) AS "Volume_KG"
@@ -237,7 +237,7 @@ query_clientes = f"""
     GROUP BY NOME_CLIENTE
 """
 
-df_todos_clientes = pd.read_sql_query(query_clientes, conn)
+    df_todos_clientes = pd.read_sql_query(query_clientes, conn)
 
 # --- APLICA A NOSSA PADRONIZAÇÃO E SOMA OS VOLUMES ---
 df_todos_clientes['Cliente'] = df_todos_clientes['Cliente'].apply(padronizar_cliente)
