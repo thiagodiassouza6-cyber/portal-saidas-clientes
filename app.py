@@ -11,19 +11,15 @@ def padronizar_cliente(nome):
     if not isinstance(nome, str) or pd.isna(nome):
         return None
     
-    # Limpa caracteres invisíveis/espacos ocultos
+    # Limpa caracteres especiais e invisíveis para trava absoluta
     nome_limpo = re.sub(r'[^a-zA-Z0-9\s]', '', nome).upper().strip()
     
-    # Se contiver 'PROD' de qualquer forma ou tamanho, elimina!
+    # TRAVA ABSOLUTA DE PRODUÇÃO
     if 'PROD' in nome_limpo or 'PRODUC' in nome.upper():
         return None
 
     nome = nome.upper().strip()
     nome = re.sub(r'\s+', ' ', nome)
-    
-    # 2. TRAVA ABSOLUTA: Elimina PRODUÇÃO / PRODUCAO / QUALQUER TIPO DE PRODUÇÃO
-    if 'PRODUC' in nome:
-        return None
     
     # --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
     
@@ -45,6 +41,7 @@ def padronizar_cliente(nome):
     if 'WESTROCK' in nome or 'WEST ROCK' in nome: return 'WESTROCK'
     if 'JA LARA' in nome or 'J A LARA' in nome or 'J.A. LARA' in nome: return 'JA LARA'
     if 'PROTELIM' in nome: return 'PROTELIM'
+    if 'GENESIS' in nome or 'GÊNESIS' in nome: return 'GENESIS'
     if 'GARIN' in nome: return 'GARIN'
     if 'OUROCOLOR' in nome or 'OURO COLOR' in nome: return 'OUROCOLOR'
     if 'ROYAL MARK' in nome or 'ROYALMARK' in nome: return 'ROYAL MARK'
@@ -141,7 +138,7 @@ def gerar_excel(df, nome_aba="Dados"):
     return output.getvalue()
 
 
-# --- CONSULTAS SEM CACHE PARA FORÇAR ATUALIZAÇÃO RECTILÍNEA ---
+# --- CONSULTAS DA BASE DE DADOS ---
 def obter_filtros_iniciais():
     conn = sqlite3.connect("estoque.db")
 
@@ -235,13 +232,8 @@ try:
 
     # 2. Ranking de Clientes
     if not df_vendas.empty:
-        # Remove qualquer variação de PRODUÇÃO / PRODUCAO ignorando acentos e maiúsculas
-        df_vendas_filtrado = df_vendas[
-            ~df_vendas['NOME_CLIENTE'].astype(str).str.upper().str.contains('PRODUC', na=False)
-        ]
-
         df_todos_clientes = (
-            df_vendas_filtrado.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
+            df_vendas.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
             .sum()
             .rename(columns={"NOME_CLIENTE": "Cliente", "QUANTIDADE_KG": "Volume_KG"})
             .sort_values(by="Volume_KG", ascending=False)
@@ -333,16 +325,19 @@ try:
 
             excel_cli = gerar_excel(df_cli_exibir, "Clientes")
 
+            # Formata o volume sem apagar a coluna
             df_cli_exibir["Volume (KG)"] = df_cli_exibir["Volume_KG"].apply(
                 lambda x: f"{x:,.2f} kg"
                 .replace(",", "X")
                 .replace(".", ",")
                 .replace("X", ".")
             )
-            df_cli_exibir.drop(columns=["Volume_KG"], inplace=True)
+            
+            # Mantém apenas as colunas certas na ordem
+            df_cli_exibir_final = df_cli_exibir[["Posição", "Cliente", "Volume (KG)"]]
 
             st.dataframe(
-                df_cli_exibir.head(10),
+                df_cli_exibir_final.head(10),
                 use_container_width=True,
                 hide_index=True,
             )
@@ -357,10 +352,10 @@ try:
                 )
 
             with st.expander(
-                f"Ver lista completa ({len(df_cli_exibir)} clientes)"
+                f"Ver lista completa ({len(df_cli_exibir_final)} clientes)"
             ):
                 st.dataframe(
-                    df_cli_exibir, use_container_width=True, hide_index=True
+                    df_cli_exibir_final, use_container_width=True, hide_index=True
                 )
         else:
             st.info("Nenhum cliente encontrado.")
@@ -376,16 +371,19 @@ try:
 
             excel_prod = gerar_excel(df_prod_exibir, "Produtos")
 
+            # Formata o volume sem apagar a coluna
             df_prod_exibir["Volume (KG)"] = df_prod_exibir["Volume_KG"].apply(
                 lambda x: f"{x:,.2f} kg"
                 .replace(",", "X")
                 .replace(".", ",")
                 .replace("X", ".")
             )
-            df_prod_exibir.drop(columns=["Volume_KG"], inplace=True)
+            
+            # Mantém apenas as colunas certas na ordem
+            df_prod_exibir_final = df_prod_exibir[["Posição", "Produto", "Volume (KG)"]]
 
             st.dataframe(
-                df_prod_exibir.head(10),
+                df_prod_exibir_final.head(10),
                 use_container_width=True,
                 hide_index=True,
             )
@@ -400,10 +398,10 @@ try:
                 )
 
             with st.expander(
-                f"Ver lista completa ({len(df_prod_exibir)} produtos)"
+                f"Ver lista completa ({len(df_prod_exibir_final)} produtos)"
             ):
                 st.dataframe(
-                    df_prod_exibir, use_container_width=True, hide_index=True
+                    df_prod_exibir_final, use_container_width=True, hide_index=True
                 )
         else:
             st.info("Nenhum produto encontrado.")
