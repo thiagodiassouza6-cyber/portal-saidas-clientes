@@ -14,11 +14,16 @@ def padronizar_cliente(nome):
     nome = nome.upper().strip()
     nome = re.sub(r'\s+', ' ', nome)
     
+    # --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
+    
+    # ACN (Captura ACN QUIMICA, ACN REPRESENTAÇ, ACN IND, etc.)
+    if 'ACN' in nome: return 'ACN QUIMICA'
+
     # DSM e SAVINA
     if 'DSM' in nome or 'DS&M' in nome: return 'DSM'
     if 'SAVINA' in nome or 'SANIVA' in nome: return 'SAVINA'
 
-    # CLIENTES DA PLANILHA
+    # CLIENTES UNIFICADOS
     if 'TONACRIL' in nome: return 'TONACRIL'
     if 'WS CARDOSO' in nome or 'W S CARDOSO' in nome: return 'WS CARDOSO'
     if 'ACQUACORES' in nome or 'ACQUA CORES' in nome: return 'ACQUACORES'
@@ -35,7 +40,8 @@ def padronizar_cliente(nome):
     if 'ROYAL MARK' in nome or 'ROYALMARK' in nome: return 'ROYAL MARK'
     if 'SAINT-GOBAIN' in nome or 'SAINT GOBAIN' in nome or 'SAINTGOBAIN' in nome: return 'SAINT-GOBAIN'
     if 'AGRO QUIM' in nome or 'AGROQUIM' in nome or 'AGRO QUÍM' in nome: return 'AGROQUIMICA'
-    if 'ACN QUIMICA' in nome: return 'ACN QUIMICA'
+    
+    # NOVOS CLIENTES ADICIONADOS
     if 'ACQUAPLUF' in nome: return 'ACQUAPLUF'
     if 'ALTHA COR' in nome or 'ALTHACOR' in nome: return 'ALTHA COR'
     if 'ARTCRIL' in nome: return 'ARTCRIL'
@@ -60,22 +66,9 @@ def padronizar_cliente(nome):
     if 'VIACOLOR' in nome: return 'VIACOLOR'
     if 'BORDEAUX' in nome: return 'BORDEAUX'
     if 'MARTINS' in nome: return 'MARTINS'
-    if 'ACN QUIMICA' in nome: return 'ACN QUIMICA'
-    if 'ACQUAPLUF' in nome: return 'ACQUAPLUF'
-    if 'ALTHA COR' in nome or 'ALTHACOR' in nome: return 'ALTHA COR'
-    if 'ARTCRIL' in nome: return 'ARTCRIL'
-    if 'ATA ASSESSORIA' in nome: return 'ATA ASSESSORIA'
-    if 'ATLAS COPCO' in nome: return 'ATLAS COPCO'
-    if 'BASF' in nome: return 'BASF'
-    if 'BELAFIX' in nome or 'BELLAFIX' in nome or 'BELLA FIX' in nome: return 'BELAFIX'
-    if 'COOPERUNI' in nome: return 'COOPERUNI'
-    if 'DECORPOL' in nome: return 'DECORPOL'
-    if 'E A DA SILVA' in nome: return 'E A DA SILVA'
-    if 'ECOPACK' in nome: return 'ECOPACK'
-    if 'FERSAL' in nome: return 'FERSAL'
 
     return nome
-
+    
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Painel Executivo de Vendas", page_icon="📊", layout="wide"
