@@ -134,13 +134,13 @@ df_clientes_raw = pd.read_sql_query(
     )
 
     # 2. Aplica a padronização para limpar duplicados e erros
-    df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padronizar_cliente)
+df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padronizar_cliente)
 
-    # 3. Gera a lista final sem duplicidades e ordenada para o dropdown
-    clientes = sorted(df_clientes_raw['NOME_CLIENTE'].dropna().unique().tolist())
+# 3. Gera a lista final sem duplicidades e ordenada para o dropdown
+clientes = sorted(df_clientes_raw['NOME_CLIENTE'].dropna().unique().tolist())
 
-    conn.close()
-    return anos, clientes
+conn.close()
+return anos, clientes
 
 
 try:
