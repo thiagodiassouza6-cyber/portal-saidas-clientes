@@ -14,7 +14,11 @@ def padronizar_cliente(nome):
     nome = nome.upper().strip()
     nome = re.sub(r'\s+', ' ', nome)
     
-    # --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
+    # Elimina PRODUCAO / PRODUÇÃO descartando o registro
+    if 'PRODUC' in nome:
+        return None
+    
+# --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
     
     # ACN (Captura ACN QUIMICA, ACN REPRESENTAÇ, ACN IND, etc.)
     if 'ACN' in nome: return 'ACN QUIMICA'
@@ -68,7 +72,7 @@ def padronizar_cliente(nome):
     if 'MARTINS' in nome: return 'MARTINS'
 
     return nome
-    
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Painel Executivo de Vendas", page_icon="📊", layout="wide"
@@ -200,9 +204,12 @@ try:
     conn.close()
 
     # Aplica a padronização no DataFrame completo
-    df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
+df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
 
-    # Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
+# Remove registros descartados (PRODUÇÃO / None)
+df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
+
+# Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
     if cliente_selecionado:
         produtos_disponiveis = sorted(df_vendas[df_vendas['NOME_CLIENTE'].isin(cliente_selecionado)]['NOME_DO_PRODUTO'].dropna().unique().tolist())
     else:
