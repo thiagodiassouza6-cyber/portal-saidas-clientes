@@ -11,7 +11,13 @@ def padronizar_cliente(nome):
     if not isinstance(nome, str) or pd.isna(nome):
         return None
     
-    # 1. Padronização básica de texto
+    # Limpa caracteres invisíveis/espacos ocultos
+    nome_limpo = re.sub(r'[^a-zA-Z0-9\s]', '', nome).upper().strip()
+    
+    # Se contiver 'PROD' de qualquer forma ou tamanho, elimina!
+    if 'PROD' in nome_limpo or 'PRODUC' in nome.upper():
+        return None
+
     nome = nome.upper().strip()
     nome = re.sub(r'\s+', ' ', nome)
     
@@ -125,7 +131,7 @@ if st.sidebar.button("🚪 Sair / Logout"):
     st.session_state.pop("usuario_logado", None)
     st.rerun()
 
-st.title("📊 TESTE DE ATUALIZAÇÃO - Painel de Análise de Saídas")
+st.title("📊 Painel de Análise de Saídas e Clientes (2020 - 2024)")
 
 
 # --- FUNÇÃO AUXILIAR PARA EXPORTAR EXCEL ---
