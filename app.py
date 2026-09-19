@@ -8,20 +8,17 @@ import re
 # TRATAMENTO E PADRONIZAÇÃO DE CLIENTES
 # ==========================================
 def padronizar_cliente(nome):
-    if not isinstance(nome, str) or pd.isna(nome):
-        return None
+    if not isinstance(nome, str):
+        return nome
     
-    # Limpa caracteres especiais e invisíveis para trava absoluta
-    nome_limpo = re.sub(r'[^a-zA-Z0-9\s]', '', nome).upper().strip()
-    
-    # TRAVA ABSOLUTA DE PRODUÇÃO
-    if 'PROD' in nome_limpo or 'PRODUC' in nome.upper():
-        return None
-
     nome = nome.upper().strip()
     nome = re.sub(r'\s+', ' ', nome)
     
-    # --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
+    # Elimina PRODUCAO / PRODUÇÃO descartando o registro
+    if 'PRODUC' in nome:
+        return None
+    
+# --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
     
     # ACN (Captura ACN QUIMICA, ACN REPRESENTAÇ, ACN IND, etc.)
     if 'ACN' in nome: return 'ACN QUIMICA'
@@ -138,7 +135,8 @@ def gerar_excel(df, nome_aba="Dados"):
     return output.getvalue()
 
 
-# --- CONSULTAS DA BASE DE DADOS ---
+# --- CONSULTAS COM CACHE DE BANCO ---
+@st.cache_data(ttl=3600)
 def obter_filtros_iniciais():
     conn = sqlite3.connect("estoque.db")
 
@@ -148,7 +146,12 @@ def obter_filtros_iniciais():
     )["ANO_ORIGEM"].tolist()
 
     df_clientes_raw = pd.read_sql_query(
-        "SELECT DISTINCT NOME_CLIENTE FROM movimentacao_vendas WHERE NOME_CLIENTE IS NOT NULL",
+        """
+        SELECT DISTINCT NOME_CLIENTE
+        FROM movimentacao_vendas
+        WHERE NOME_CLIENTE IS NOT NULL
+            AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção')
+        """,
         conn,
     )
 
@@ -180,7 +183,10 @@ try:
     # --- CARREGAMENTO E FILTRAGEM VIA PANDAS ---
     conn = sqlite3.connect("estoque.db")
 
+    # Busca a base de vendas respeitando filtro de ano se houver
     condicoes_sql = ["NOME_CLIENTE IS NOT NULL", "NOME_DO_PRODUTO IS NOT NULL"]
+    condicoes_sql.append("LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao', 'null', '', 'none')")
+    condicoes_sql.append("LOWER(TRIM(NOME_DO_PRODUTO)) NOT IN ('null', '', 'none')")
 
     if ano_selecionado:
         anos_fmt = "', '".join(ano_selecionado)
@@ -193,18 +199,17 @@ try:
         FROM movimentacao_vendas
         {where_clause}
     """
-
+    
     df_vendas = pd.read_sql_query(query_base, conn)
     conn.close()
 
-    # 1. Aplica a padronização no DataFrame completo
-    df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
+    # Aplica a padronização no DataFrame completo
+df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
 
-    # 2. FILTRAGEM RIGOROSA DE PRODUÇÃO E VALORES NULOS NO PANDAS
-    df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
-    df_vendas = df_vendas[~df_vendas['NOME_CLIENTE'].astype(str).str.upper().str.contains('PRODUC', na=False)]
+# Remove registros descartados (PRODUÇÃO / None)
+df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
 
-    # Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
+# Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
     if cliente_selecionado:
         produtos_disponiveis = sorted(df_vendas[df_vendas['NOME_CLIENTE'].isin(cliente_selecionado)]['NOME_DO_PRODUTO'].dropna().unique().tolist())
     else:
@@ -325,19 +330,16 @@ try:
 
             excel_cli = gerar_excel(df_cli_exibir, "Clientes")
 
-            # Formata o volume sem apagar a coluna
             df_cli_exibir["Volume (KG)"] = df_cli_exibir["Volume_KG"].apply(
                 lambda x: f"{x:,.2f} kg"
                 .replace(",", "X")
                 .replace(".", ",")
                 .replace("X", ".")
             )
-            
-            # Mantém apenas as colunas certas na ordem
-            df_cli_exibir_final = df_cli_exibir[["Posição", "Cliente", "Volume (KG)"]]
+            df_cli_exibir.drop(columns=["Volume_KG"], inplace=True)
 
             st.dataframe(
-                df_cli_exibir_final.head(10),
+                df_cli_exibir.head(10),
                 use_container_width=True,
                 hide_index=True,
             )
@@ -352,10 +354,10 @@ try:
                 )
 
             with st.expander(
-                f"Ver lista completa ({len(df_cli_exibir_final)} clientes)"
+                f"Ver lista completa ({len(df_cli_exibir)} clientes)"
             ):
                 st.dataframe(
-                    df_cli_exibir_final, use_container_width=True, hide_index=True
+                    df_cli_exibir, use_container_width=True, hide_index=True
                 )
         else:
             st.info("Nenhum cliente encontrado.")
@@ -371,19 +373,16 @@ try:
 
             excel_prod = gerar_excel(df_prod_exibir, "Produtos")
 
-            # Formata o volume sem apagar a coluna
             df_prod_exibir["Volume (KG)"] = df_prod_exibir["Volume_KG"].apply(
                 lambda x: f"{x:,.2f} kg"
                 .replace(",", "X")
                 .replace(".", ",")
                 .replace("X", ".")
             )
-            
-            # Mantém apenas as colunas certas na ordem
-            df_prod_exibir_final = df_prod_exibir[["Posição", "Produto", "Volume (KG)"]]
+            df_prod_exibir.drop(columns=["Volume_KG"], inplace=True)
 
             st.dataframe(
-                df_prod_exibir_final.head(10),
+                df_prod_exibir.head(10),
                 use_container_width=True,
                 hide_index=True,
             )
@@ -398,10 +397,10 @@ try:
                 )
 
             with st.expander(
-                f"Ver lista completa ({len(df_prod_exibir_final)} produtos)"
+                f"Ver lista completa ({len(df_prod_exibir)} produtos)"
             ):
                 st.dataframe(
-                    df_prod_exibir_final, use_container_width=True, hide_index=True
+                    df_prod_exibir, use_container_width=True, hide_index=True
                 )
         else:
             st.info("Nenhum produto encontrado.")
