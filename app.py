@@ -75,7 +75,6 @@ def tela_login():
             btn_entrar = st.form_submit_button("Entrar no Painel", type="primary")
 
             if btn_entrar:
-                # Validação direta respeitando maiúsculas e minúsculas
                 if (
                     usuario_input in USUARIOS_PERMITIDOS
                     and USUARIOS_PERMITIDOS[usuario_input] == senha_input
@@ -133,10 +132,7 @@ def obter_filtros_iniciais():
         conn,
     )
 
-    # 2. Aplica a padronização para limpar duplicados e erros
     df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padronizar_cliente)
-
-    # 3. Gera a lista final sem duplicidades e ordenada para o dropdown
     clientes = sorted(df_clientes_raw['NOME_CLIENTE'].dropna().unique().tolist())
 
     conn.close()
@@ -161,27 +157,37 @@ try:
         placeholder="Busque o nome do cliente...",
     )
 
-    # Lógica de Filtro Cruzado: Busca apenas produtos comprados pelos clientes selecionados
+    # --- CARREGAMENTO E FILTRAGEM VIA PANDAS ---
     conn = sqlite3.connect("estoque.db")
 
-    condicoes_prods_disponiveis = [
-        "NOME_DO_PRODUTO IS NOT NULL",
-        "LOWER(TRIM(NOME_DO_PRODUTO)) NOT IN ('null', '', 'none')",
-    ]
-    if cliente_selecionado:
-        clis_fmt = "', '".join(
-            [c.replace("'", "''") for c in cliente_selecionado]
-        )
-        condicoes_prods_disponiveis.append(f"NOME_CLIENTE IN ('{clis_fmt}')")
+    # Busca a base de vendas respeitando filtro de ano se houver
+    condicoes_sql = ["NOME_CLIENTE IS NOT NULL", "NOME_DO_PRODUTO IS NOT NULL"]
+    condicoes_sql.append("LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao', 'null', '', 'none')")
+    condicoes_sql.append("LOWER(TRIM(NOME_DO_PRODUTO)) NOT IN ('null', '', 'none')")
+
     if ano_selecionado:
         anos_fmt = "', '".join(ano_selecionado)
-        condicoes_prods_disponiveis.append(f"ANO_ORIGEM IN ('{anos_fmt}')")
+        condicoes_sql.append(f"ANO_ORIGEM IN ('{anos_fmt}')")
 
-    where_prods = "WHERE " + " AND ".join(condicoes_prods_disponiveis)
-    produtos_disponiveis = pd.read_sql_query(
-        f"SELECT DISTINCT NOME_DO_PRODUTO FROM movimentacao_vendas {where_prods} ORDER BY NOME_DO_PRODUTO ASC",
-        conn,
-    )["NOME_DO_PRODUTO"].tolist()
+    where_clause = "WHERE " + " AND ".join(condicoes_sql)
+
+    query_base = f"""
+        SELECT ANO_ORIGEM, MES_ORIGEM, NOME_CLIENTE, NOME_DO_PRODUTO, QUANTIDADE_KG
+        FROM movimentacao_vendas
+        {where_clause}
+    """
+    
+    df_vendas = pd.read_sql_query(query_base, conn)
+    conn.close()
+
+    # Aplica a padronização no DataFrame completo
+    df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
+
+    # Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
+    if cliente_selecionado:
+        produtos_disponiveis = sorted(df_vendas[df_vendas['NOME_CLIENTE'].isin(cliente_selecionado)]['NOME_DO_PRODUTO'].dropna().unique().tolist())
+    else:
+        produtos_disponiveis = sorted(df_vendas['NOME_DO_PRODUTO'].dropna().unique().tolist())
 
     produto_selecionado = st.sidebar.multiselect(
         "Filtrar por Produto",
@@ -189,90 +195,56 @@ try:
         placeholder="Busque o produto...",
     )
 
-    # --- CONSTRUÇÃO DA CLÁUSULA WHERE PRINCIPAL ---
-    condicoes_base = []
-
-    if ano_selecionado:
-        anos_fmt = "', '".join(ano_selecionado)
-        condicoes_base.append(f"ANO_ORIGEM IN ('{anos_fmt}')")
-
+    # Aplica os filtros de Cliente e Produto selecionados
     if cliente_selecionado:
-        clis_fmt = "', '".join(
-            [c.replace("'", "''") for c in cliente_selecionado]
-        )
-        condicoes_base.append(f"NOME_CLIENTE IN ('{clis_fmt}')")
+        df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].isin(cliente_selecionado)]
 
     if produto_selecionado:
-        prods_fmt = "', '".join(
-            [p.replace("'", "''") for p in produto_selecionado]
-        )
-        condicoes_base.append(f"NOME_DO_PRODUTO IN ('{prods_fmt}')")
+        df_vendas = df_vendas[df_vendas['NOME_DO_PRODUTO'].isin(produto_selecionado)]
 
-    # Exclusão global de registros inválidos
-    condicoes_base.append("NOME_CLIENTE IS NOT NULL")
-    condicoes_base.append(
-        "LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao', 'null', '', 'none')"
-    )
-    condicoes_base.append("NOME_DO_PRODUTO IS NOT NULL")
-    condicoes_base.append(
-        "LOWER(TRIM(NOME_DO_PRODUTO)) NOT IN ('null', '', 'none')"
-    )
-
-    where_sql = "WHERE " + " AND ".join(condicoes_base)
-
-    # --- CONSULTAS DE DADOS ---
+    # --- PROCESSAMENTO DOS KPIs E TABELAS ---
 
     # 1. KPIs Gerais
-    query_totais = f"SELECT SUM(QUANTIDADE_KG) as TOTAL_KG, COUNT(*) as TOTAL_REGISTROS, COUNT(DISTINCT NOME_CLIENTE) as TOTAL_CLIENTES FROM movimentacao_vendas {where_sql}"
-    df_totais = pd.read_sql_query(query_totais, conn)
+    total_kg = df_vendas["QUANTIDADE_KG"].sum() if not df_vendas.empty else 0
+    total_pedidos = len(df_vendas)
+    total_clientes = df_vendas["NOME_CLIENTE"].nunique() if not df_vendas.empty else 0
 
- # 2. Ranking de Todos os Clientes
-    query_clientes = f"""
-    SELECT 
-        NOME_CLIENTE AS "Cliente",
-        SUM(QUANTIDADE_KG) AS "Volume_KG"
-    FROM movimentacao_vendas
-    {where_sql} AND UPPER(NOME_CLIENTE) NOT LIKE '%PRODUÇÃO%'
-    GROUP BY NOME_CLIENTE
-"""
+    # 2. Ranking de Clientes
+    if not df_vendas.empty:
+        df_todos_clientes = (
+            df_vendas.groupby("NOME_CLIENTE", as_index=False)["QUANTIDADE_KG"]
+            .sum()
+            .rename(columns={"NOME_CLIENTE": "Cliente", "QUANTIDADE_KG": "Volume_KG"})
+            .sort_values(by="Volume_KG", ascending=False)
+        )
+    else:
+        df_todos_clientes = pd.DataFrame(columns=["Cliente", "Volume_KG"])
 
-    df_todos_clientes = pd.read_sql_query(query_clientes, conn)
-
-# --- APLICA A NOSSA PADRONIZAÇÃO E SOMA OS VOLUMES ---
-    df_todos_clientes['Cliente'] = df_todos_clientes['Cliente'].apply(padronizar_cliente)
-    df_todos_clientes = (
-    df_todos_clientes.groupby('Cliente', as_index=False)['Volume_KG']
-    .sum()
-    .sort_values(by='Volume_KG', ascending=False)
-)
-    # 3. Ranking de Todos os Produtos do Filtro
-    query_produtos = f"""
-        SELECT NOME_DO_PRODUTO AS "Produto", SUM(QUANTIDADE_KG) AS "Volume_KG"
-        FROM movimentacao_vendas
-        {where_sql}
-        GROUP BY NOME_DO_PRODUTO
-        ORDER BY "Volume_KG" DESC
-    """
-    df_todos_produtos = pd.read_sql_query(query_produtos, conn)
+    # 3. Ranking de Produtos
+    if not df_vendas.empty:
+        df_todos_produtos = (
+            df_vendas.groupby("NOME_DO_PRODUTO", as_index=False)["QUANTIDADE_KG"]
+            .sum()
+            .rename(columns={"NOME_DO_PRODUTO": "Produto", "QUANTIDADE_KG": "Volume_KG"})
+            .sort_values(by="Volume_KG", ascending=False)
+        )
+    else:
+        df_todos_produtos = pd.DataFrame(columns=["Produto", "Volume_KG"])
 
     # 4. Dados para Gráfico Temporal Interativo
-    query_grafico = f"""
-        SELECT ANO_ORIGEM, MES_ORIGEM, SUM(QUANTIDADE_KG) AS TOTAL_KG
-        FROM movimentacao_vendas
-        {where_sql}
-        GROUP BY ANO_ORIGEM, MES_ORIGEM
-    """
-    df_grafico = pd.read_sql_query(query_grafico, conn)
-
-    conn.close()
+    if not df_vendas.empty:
+        df_grafico = (
+            df_vendas.groupby(["ANO_ORIGEM", "MES_ORIGEM"], as_index=False)["QUANTIDADE_KG"]
+            .sum()
+            .rename(columns={"QUANTIDADE_KG": "TOTAL_KG"})
+        )
+    else:
+        df_grafico = pd.DataFrame(columns=["ANO_ORIGEM", "MES_ORIGEM", "TOTAL_KG"])
 
     # --- RENDERIZAÇÃO DA PÁGINA ---
 
     # KPI HEADERS
     col1, col2, col3 = st.columns(3)
-    total_kg = df_totais["TOTAL_KG"].iloc[0] or 0
-    total_pedidos = df_totais["TOTAL_REGISTROS"].iloc[0] or 0
-    total_clientes = df_totais["TOTAL_CLIENTES"].iloc[0] or 0
 
     col1.metric(
         "Volume Total (KG)",
