@@ -125,7 +125,7 @@ if st.sidebar.button("🚪 Sair / Logout"):
     st.session_state.pop("usuario_logado", None)
     st.rerun()
 
-st.title("📊 Painel de Análise de Saídas e Clientes (2020 - 2024)")
+st.title("📊 TESTE DE ATUALIZAÇÃO - Painel de Análise de Saídas")
 
 
 # --- FUNÇÃO AUXILIAR PARA EXPORTAR EXCEL ---
