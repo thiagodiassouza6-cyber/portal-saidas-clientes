@@ -14,11 +14,11 @@ def padronizar_cliente(nome):
     nome = nome.upper().strip()
     nome = re.sub(r'\s+', ' ', nome)
     
-    # Elimina PRODUCAO / PRODUÇÃO descartando o registro
+    # Trava 1: Elimina PRODUCAO / PRODUÇÃO descartando o registro (retorna None)
     if 'PRODUC' in nome:
         return None
     
-# --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
+    # --- REGRA DE OURO: BUSCA PELA PALAVRA-CHAVE PRINCIPAL ---
     
     # ACN (Captura ACN QUIMICA, ACN REPRESENTAÇ, ACN IND, etc.)
     if 'ACN' in nome: return 'ACN QUIMICA'
@@ -150,7 +150,8 @@ def obter_filtros_iniciais():
         SELECT DISTINCT NOME_CLIENTE
         FROM movimentacao_vendas
         WHERE NOME_CLIENTE IS NOT NULL
-            AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção')
+            AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao')
+            AND UPPER(NOME_CLIENTE) NOT LIKE '%PRODUC%'
         """,
         conn,
     )
@@ -186,6 +187,7 @@ try:
     # Busca a base de vendas respeitando filtro de ano se houver
     condicoes_sql = ["NOME_CLIENTE IS NOT NULL", "NOME_DO_PRODUTO IS NOT NULL"]
     condicoes_sql.append("LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção', 'producao', 'null', '', 'none')")
+    condicoes_sql.append("UPPER(NOME_CLIENTE) NOT LIKE '%PRODUC%'")
     condicoes_sql.append("LOWER(TRIM(NOME_DO_PRODUTO)) NOT IN ('null', '', 'none')")
 
     if ano_selecionado:
@@ -200,20 +202,16 @@ try:
         {where_clause}
     """
 
-    try:
-        df_vendas = pd.read_sql_query(query_base, conn)
-        conn.close()
+    df_vendas = pd.read_sql_query(query_base, conn)
+    conn.close()
 
-        # Aplica a padronização no DataFrame completo
-        df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
+    # Aplica a padronização no DataFrame completo
+    df_vendas['NOME_CLIENTE'] = df_vendas['NOME_CLIENTE'].apply(padronizar_cliente)
 
-        # Remove registros descartados (PRODUÇÃO / None)
-        df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
+    # Trava 2: Remove registros descartados (PRODUÇÃO / None) do DataFrame Pandas
+    df_vendas = df_vendas[df_vendas['NOME_CLIENTE'].notnull()]
 
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
-
-# Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
+    # Atualiza lista de produtos dinamicamente baseado nos clientes selecionados
     if cliente_selecionado:
         produtos_disponiveis = sorted(df_vendas[df_vendas['NOME_CLIENTE'].isin(cliente_selecionado)]['NOME_DO_PRODUTO'].dropna().unique().tolist())
     else:
