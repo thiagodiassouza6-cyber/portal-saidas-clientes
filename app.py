@@ -240,8 +240,8 @@ try:
     df_todos_clientes = pd.read_sql_query(query_clientes, conn)
 
 # --- APLICA A NOSSA PADRONIZAÇÃO E SOMA OS VOLUMES ---
-df_todos_clientes['Cliente'] = df_todos_clientes['Cliente'].apply(padronizar_cliente)
-df_todos_clientes = (
+    df_todos_clientes['Cliente'] = df_todos_clientes['Cliente'].apply(padronizar_cliente)
+    df_todos_clientes = (
     df_todos_clientes.groupby('Cliente', as_index=False)['Volume_KG']
     .sum()
     .sort_values(by='Volume_KG', ascending=False)
