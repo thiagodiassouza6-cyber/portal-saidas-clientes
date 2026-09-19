@@ -47,6 +47,19 @@ def padronizar_cliente(nome):
     if 'VIACOLOR' in nome: return 'VIACOLOR'
     if 'BORDEAUX' in nome: return 'BORDEAUX'
     if 'MARTINS' in nome: return 'MARTINS'
+    if 'ACN QUIMICA' in nome: return 'ACN QUIMICA'
+    if 'ACQUAPLUF' in nome: return 'ACQUAPLUF'
+    if 'ALTHA COR' in nome or 'ALTHACOR' in nome: return 'ALTHA COR'
+    if 'ARTCRIL' in nome: return 'ARTCRIL'
+    if 'ATA ASSESSORIA' in nome: return 'ATA ASSESSORIA'
+    if 'ATLAS COPCO' in nome: return 'ATLAS COPCO'
+    if 'BASF' in nome: return 'BASF'
+    if 'BELAFIX' in nome or 'BELLAFIX' in nome or 'BELLA FIX' in nome: return 'BELAFIX'
+    if 'COOPERUNI' in nome: return 'COOPERUNI'
+    if 'DECORPOL' in nome: return 'DECORPOL'
+    if 'E A DA SILVA' in nome: return 'E A DA SILVA'
+    if 'ECOPACK' in nome: return 'ECOPACK'
+    if 'FERSAL' in nome: return 'FERSAL'
 
     return nome
 
