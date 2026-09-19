@@ -123,24 +123,24 @@ def obter_filtros_iniciais():
         conn,
     )["ANO_ORIGEM"].tolist()
 
-df_clientes_raw = pd.read_sql_query(
+    df_clientes_raw = pd.read_sql_query(
         """
         SELECT DISTINCT NOME_CLIENTE
         FROM movimentacao_vendas
         WHERE NOME_CLIENTE IS NOT NULL
             AND LOWER(TRIM(NOME_CLIENTE)) NOT IN ('não informado', 'nao informado', 'produção')
         """,
-        conn
+        conn,
     )
 
     # 2. Aplica a padronização para limpar duplicados e erros
-df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padronizar_cliente)
+    df_clientes_raw['NOME_CLIENTE'] = df_clientes_raw['NOME_CLIENTE'].apply(padronizar_cliente)
 
-# 3. Gera a lista final sem duplicidades e ordenada para o dropdown
-clientes = sorted(df_clientes_raw['NOME_CLIENTE'].dropna().unique().tolist())
+    # 3. Gera a lista final sem duplicidades e ordenada para o dropdown
+    clientes = sorted(df_clientes_raw['NOME_CLIENTE'].dropna().unique().tolist())
 
-conn.close()
-return anos, clientes
+    conn.close()
+    return anos, clientes
 
 
 try:
